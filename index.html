@@ -157,7 +157,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;heigh
         <strong>Cousin primes</strong> (gap=4): pairs like 7,11 or 13,17.<br>
         <strong>Sexy primes</strong> (gap=6): named for the Latin <em>sex</em>. Pairs like 5,11 or 7,13.<br>
         <strong>Prime deserts</strong>: unusually long gaps — rarer and longer as p grows.</p>
-        <p>The <strong>gap histogram</strong>, <strong>π(x) curve</strong>, and <strong>Ulam spiral</strong> are visible when Show Math is on.</p>
+        <p>The <strong>gap histogram</strong>, <strong>prime count curve</strong>, and <strong>Ulam spiral</strong> are visible when Show Math is on.</p>
         <p>Largest known gap ≤10M: <strong>154</strong>, between 2,010,733 and 2,010,881.</p>
       </div>
     </div>
@@ -167,7 +167,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;heigh
       <div class="info-block">
         <p><strong>Fly</strong> — the visualization runs automatically. You are flying forward through prime number space. Each form that blooms around you encodes a prime gap.</p>
         <p><strong>Tap anywhere</strong> on the main screen to burst a cluster of forms at that point.</p>
-        <p><strong>Show Math</strong> (bottom-left button) — reveals four live panels: a stats card, gap histogram, π(x) prime-counting curve, and Ulam spiral.</p>
+        <p><strong>Show Math</strong> (bottom-left button) — reveals four live panels: a stats card, gap histogram, prime count curve, and Ulam spiral.</p>
         <p><strong>Starting Number</strong> — slide to any region up to 10 million and tap "Begin journey here" to jump there instantly.</p>
         <p><strong>Color &amp; Speed</strong> — change palette, flight speed, and dreaminess from this menu anytime.</p>
         <p><strong>Sound</strong> — ambient tones react to gap size. Best with headphones.</p>
@@ -451,7 +451,7 @@ function drawStatsCard(){
   if(!primes[primeIdx])return;
   var d=primes[primeIdx],mg=currentMaxGap();
   var logP=Math.log(d.p).toFixed(2);
-  var lines=['p  = '+d.p.toLocaleString(),'gap = '+d.gap,'ln(p) = '+logP,'π(x) ≈ '+piCount.toLocaleString(),'record = '+gapRecord];
+  var lines=['p  = '+d.p.toLocaleString(),'gap = '+d.gap,'ln(p) = '+logP,'seen  = '+piCount.toLocaleString(),'record = '+gapRecord];
   var cx=16,cy=44,cw=168,ch=lines.length*17+14;
   ctx.save();ctx.globalAlpha=0.82;
   ctx.fillStyle='rgba(255,252,255,0.88)';roundRect(ctx,cx,cy,cw,ch,10);ctx.fill();
@@ -515,7 +515,7 @@ function drawPiCurve(){
   ctx.save();ctx.globalAlpha=0.78;
   ctx.fillStyle='rgba(255,252,255,0.86)';roundRect(ctx,CX2-4,CY2-20,CW+12,CH+32,10);ctx.fill();
   ctx.globalAlpha=0.5;ctx.font='300 8px \'DM Mono\'';ctx.fillStyle='#b090c8';ctx.textAlign='left';
-  ctx.fillText('π(x)  prime count',CX2,CY2-8);ctx.restore();
+  ctx.fillText('primes seen this flight',CX2,CY2-8);ctx.restore();
   var minP=piHistory[0].p,maxP=piHistory[piHistory.length-1].p;
   var maxC=piHistory[piHistory.length-1].count;
   var pRange=Math.max(1,maxP-minP);
