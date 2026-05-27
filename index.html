@@ -579,7 +579,7 @@ function drawUlamSpiral(){
   var startN=Math.max(1,startP-Math.floor(total/2));
 
   // Recompute only when region shifts by more than half the grid
-  if(ulamCache===null||Math.abs(startP-ulamCacheP)>Math.floor(total/2)){
+  if(ulamCache===null||Math.abs(startP-ulamCacheP)>20){
     ulamCacheP=startP;
     buildUlamCache(startN,total);
   }
