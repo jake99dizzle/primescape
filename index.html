@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Primescape</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#fdf6ff;font-family:'DM Mono',monospace;user-select:none;-webkit-user-select:none}
+#canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#title-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:10;transition:opacity 1.6s ease}
+#title-screen.hidden{opacity:0}
+.title-word{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(3rem,13vw,7rem);letter-spacing:0.2em;color:#9b7fb5;opacity:0;animation:fadeUp 1.8s ease 0.4s forwards}
+.title-sub{font-size:clamp(0.55rem,2vw,0.78rem);letter-spacing:0.38em;color:#c4a8d8;text-transform:uppercase;opacity:0;animation:fadeUp 1.4s ease 1.2s forwards;margin-top:0.5rem}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:0.85;transform:translateY(0)}}
+#prime-display{position:fixed;top:16px;left:50%;transform:translateX(-50%);font-size:clamp(0.58rem,1.8vw,0.72rem);letter-spacing:0.2em;color:#a080c0;z-index:15;pointer-events:none;opacity:0;transition:opacity 1s ease;white-space:nowrap;background:rgba(255,252,255,0.55);padding:3px 10px;border-radius:20px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#prime-display.visible{opacity:0.7}
+#math-btn{position:fixed;bottom:24px;left:24px;height:36px;padding:0 14px;border-radius:100px;background:rgba(255,255,255,0.82);border:1.5px solid rgba(180,150,200,0.35);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;gap:6px;cursor:pointer;z-index:20;box-shadow:0 4px 24px rgba(180,150,200,0.2);font-size:0.68rem;font-family:'DM Mono',monospace;color:#9b7fb5;letter-spacing:0.06em;transition:all 0.2s}
+#math-btn.on{background:rgba(180,150,220,0.18);border-color:rgba(160,120,200,0.5);color:#6b4090}
+#math-btn:active{transform:scale(0.95)}
+.math-dot{width:7px;height:7px;border-radius:50%;background:rgba(180,150,200,0.4);transition:background 0.2s;flex-shrink:0}
+#math-btn.on .math-dot{background:#9b7fb5}
+#menu-btn{position:fixed;bottom:24px;right:24px;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,0.82);border:1.5px solid rgba(180,150,200,0.35);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:20;box-shadow:0 4px 24px rgba(180,150,200,0.3);font-size:18px;color:#9b7fb5;transition:transform 0.2s}
+#menu-btn:active{transform:scale(0.9)}
+#menu{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;pointer-events:none;opacity:0;transition:opacity 0.3s ease}
+#menu.open{opacity:1;pointer-events:all}
+#menu-backdrop{position:absolute;inset:0;background:rgba(220,200,240,0.35);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#menu-panel{position:relative;width:min(500px,100%);max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:rgba(255,252,255,0.96);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);border:1.5px solid rgba(180,150,220,0.2);border-radius:28px 28px 0 0;padding:18px 22px calc(48px + env(safe-area-inset-bottom,16px));transform:translateY(100%);transition:transform 0.44s cubic-bezier(0.4,0,0.2,1);color:#6b5080;box-shadow:0 -8px 48px rgba(180,150,200,0.2)}
+#menu.open #menu-panel{transform:translateY(0)}
+.drag-handle{width:36px;height:4px;background:rgba(180,150,200,0.25);border-radius:2px;margin:0 auto 20px}
+.menu-section{margin-bottom:20px}
+.section-title{font-size:0.6rem;letter-spacing:0.3em;text-transform:uppercase;color:#c4a8d8;margin-bottom:11px}
+.chip-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.chip{padding:7px 13px;border-radius:100px;font-size:0.71rem;font-family:'DM Mono',monospace;border:1.5px solid rgba(180,150,200,0.25);background:rgba(255,255,255,0.7);color:#9b7fb5;cursor:pointer;transition:all 0.2s;letter-spacing:0.03em}
+.chip.active{background:rgba(180,150,220,0.18);border-color:rgba(160,120,200,0.5);color:#6b4090}
+.chip:active{transform:scale(0.93)}
+.slider-wrap{display:flex;align-items:center;gap:12px;margin-bottom:10px;touch-action:pan-x}
+.slider-lbl{font-size:0.63rem;opacity:0.45;min-width:28px}
+input[type=range]{-webkit-appearance:none;flex:1;height:4px;border-radius:2px;background:rgba(180,150,200,0.2);outline:none;touch-action:pan-x;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#d4a8e8,#a0c8f0);cursor:pointer;box-shadow:0 2px 10px rgba(180,150,200,0.4)}
+.btn-go{padding:11px 16px;border-radius:12px;background:linear-gradient(135deg,rgba(180,150,220,0.25),rgba(160,200,240,0.25));border:1.5px solid rgba(160,130,200,0.35);color:#6b4090;font-family:'DM Mono',monospace;font-size:0.77rem;cursor:pointer;letter-spacing:0.05em;transition:all 0.2s}
+.btn-go:active{background:rgba(180,150,220,0.4)}
+.divider{height:1px;background:rgba(180,150,200,0.12);margin:4px 0 18px}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.toggle-row span{font-size:0.77rem;color:#8b6fa0}
+.toggle{width:44px;height:26px;border-radius:13px;background:rgba(180,150,200,0.2);position:relative;cursor:pointer;transition:background 0.3s;flex-shrink:0}
+.toggle.on{background:linear-gradient(135deg,#c4a0dc,#a0c4f0)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform 0.3s;box-shadow:0 1px 6px rgba(150,120,180,0.3)}
+.toggle.on::after{transform:translateX(18px)}
+.hint{font-size:0.63rem;color:#c4a8d8;line-height:1.55;margin-top:3px}
+.info-block{background:rgba(240,230,255,0.4);border-radius:14px;padding:14px;font-size:0.72rem;line-height:1.78;color:#9b85b0}
+.info-block strong{color:#7b5898;font-weight:400}
+.info-block p+p{margin-top:9px}
+.prime-type-legend{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.legend-item{display:flex;align-items:center;gap:7px;font-size:0.68rem;color:#9b85b0}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.ripple{position:fixed;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%) scale(0);animation:rippleOut 1.6s ease-out forwards;z-index:5}
+@keyframes rippleOut{0%{transform:translate(-50%,-50%) scale(0);opacity:0.5}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="title-screen">
+  <div class="title-word">Primescape</div>
+  <div class="title-sub">prime gap journey</div>
+</div>
+<div id="prime-display">p = 2</div>
+<button id="math-btn"><div class="math-dot"></div><span>show math</span></button>
+<button id="menu-btn">⚙</button>
+
+<div id="menu" role="dialog">
+  <div id="menu-backdrop"></div>
+  <div id="menu-panel">
+    <div class="drag-handle"></div>
+
+    <div class="menu-section">
+      <div class="section-title">Starting Prime Region</div>
+      <div style="text-align:center;margin-bottom:12px;">
+        <div id="pick-num" style="font-family:'Cormorant Garamond',serif;font-weight:300;font-size:2.6rem;color:#9b7fb5;letter-spacing:0.04em;line-height:1.1;">2</div>
+        <div id="pick-fact" style="font-size:0.65rem;color:#c4a8d8;margin-top:4px;min-height:2em;padding:0 6px;line-height:1.55;"></div>
+      </div>
+      <div style="position:relative;margin-bottom:4px;">
+        <input type="range" id="log-slider" min="0" max="1000" value="0" style="width:100%;touch-action:pan-x;">
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px;padding:0 2px;">
+        <span style="font-size:0.58rem;color:#c4a8d8;">2</span>
+        <span style="font-size:0.58rem;color:#c4a8d8;">1K</span>
+        <span style="font-size:0.58rem;color:#c4a8d8;">10K</span>
+        <span style="font-size:0.58rem;color:#c4a8d8;">100K</span>
+        <span style="font-size:0.58rem;color:#c4a8d8;">1M</span>
+        <span style="font-size:0.58rem;color:#c4a8d8;">10M</span>
+      </div>
+      <button class="btn-go" id="go-btn" style="width:100%;text-align:center;">Begin journey here →</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="menu-section">
+      <div class="section-title">Color Palette</div>
+      <div class="chip-row" id="palette-chips">
+        <button class="chip active" data-palette="dream">Dream</button>
+        <button class="chip" data-palette="aurora">Aurora</button>
+        <button class="chip" data-palette="candy">Candy</button>
+        <button class="chip" data-palette="sunrise">Sunrise</button>
+        <button class="chip" data-palette="ocean">Ocean</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="menu-section">
+      <div class="section-title">Flight Speed</div>
+      <div class="slider-wrap">
+        <span class="slider-lbl">slow</span>
+        <input type="range" id="speed-slider" min="1" max="10" value="5">
+        <span class="slider-lbl">fast</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="menu-section">
+      <div class="section-title">Dreaminess</div>
+      <div class="slider-wrap">
+        <span class="slider-lbl">crisp</span>
+        <input type="range" id="dream-slider" min="1" max="10" value="7">
+        <span class="slider-lbl">hazy</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="menu-section">
+      <div class="section-title">Sound</div>
+      <div class="toggle-row">
+        <span>Ambient generative audio</span>
+        <div class="toggle" id="sound-toggle"></div>
+      </div>
+      <div class="hint">Pitch reacts to prime gap size.</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="menu-section">
+      <div class="section-title">Prime Pair Events</div>
+      <div class="prime-type-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#e8c4d4;box-shadow:0 0 6px #e8c4d4;"></div>Twin (gap=2)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#c4d4e8;box-shadow:0 0 6px #c4d4e8;"></div>Cousin (gap=4)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#c4e8d4;box-shadow:0 0 6px #c4e8d4;"></div>Sexy (gap=6)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#e8d4a0;box-shadow:0 0 6px #e8d4a0;"></div>Desert record</div>
+      </div>
+      <div class="hint" style="margin-top:8px;">Named pair types are color-coded in the math overlay and histogram when Show Math is on.</div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="menu-section">
+      <div class="section-title">About Prime Gaps</div>
+      <div class="info-block">
+        <p>A <strong>prime gap</strong> is the distance between consecutive primes. After 7 comes 11 — gap of 4. After 23 comes 29 — gap of 6.</p>
+        <p><strong>Twin primes</strong> (gap=2): pairs like 11,13 or 17,19. Possibly infinite — unproven.<br>
+        <strong>Cousin primes</strong> (gap=4): pairs like 7,11 or 13,17.<br>
+        <strong>Sexy primes</strong> (gap=6): named for the Latin <em>sex</em>. Pairs like 5,11 or 7,13.<br>
+        <strong>Prime deserts</strong>: unusually long gaps — rarer and longer as p grows.</p>
+        <p>The <strong>gap histogram</strong>, <strong>π(x) curve</strong>, and <strong>Ulam spiral</strong> are visible when Show Math is on.</p>
+        <p>Largest known gap ≤10M: <strong>154</strong>, between 2,010,733 and 2,010,881.</p>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="menu-section">
+      <div class="section-title">How to Use</div>
+      <div class="info-block">
+        <p><strong>Fly</strong> — the visualization runs automatically. You are flying forward through prime number space. Each form that blooms around you encodes a prime gap.</p>
+        <p><strong>Tap anywhere</strong> on the main screen to burst a cluster of forms at that point.</p>
+        <p><strong>Show Math</strong> (bottom-left button) — reveals four live panels: a stats card, gap histogram, π(x) prime-counting curve, and Ulam spiral.</p>
+        <p><strong>Starting Number</strong> — slide to any region up to 10 million and tap "Begin journey here" to jump there instantly.</p>
+        <p><strong>Color &amp; Speed</strong> — change palette, flight speed, and dreaminess from this menu anytime.</p>
+        <p><strong>Sound</strong> — ambient tones react to gap size. Best with headphones.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  PRIMESCAPE  —  Full math observatory edition
+// ═══════════════════════════════════════════════════════
+var canvas = document.getElementById('canvas');
+var ctx    = canvas.getContext('2d');
+var W=1,H=1,CX=0,CY=0;
+function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;CX=W/2;CY=H/2;}
+window.addEventListener('resize',resize); resize();
+
+// ── State ──
+function loadState(){
+  var d={startNum:2,speed:5,palette:'dream',dreamy:7,sound:false,showMath:false};
+  try{var s=JSON.parse(localStorage.getItem('ps7')||'{}');
+    return{startNum:s.startNum||d.startNum,speed:s.speed||d.speed,palette:s.palette||d.palette,
+           dreamy:s.dreamy||d.dreamy,sound:!!s.sound,showMath:!!s.showMath};}
+  catch(e){return d;}
+}
+function saveState(){try{localStorage.setItem('ps7',JSON.stringify(state));}catch(e){}}
+var state=loadState();
+var menuOpen=false,soundOn=false,showMath=false;
+var audioCtx=null,lastSoundT=0;
+
+// ── Primes ──
+var primes=[],primeIdx=0;
+function isPrime(n){if(n<2)return false;if(n===2)return true;if(n%2===0)return false;var s=Math.sqrt(n);for(var i=3;i<=s;i+=2)if(n%i===0)return false;return true;}
+function nextPrime(n){var c=n+1;while(!isPrime(c))c++;return c;}
+function buildPrimes(start){
+  primes=[];
+  var p=Math.max(2,Math.floor(start));
+  if(!isPrime(p))p=nextPrime(p-1);
+  var prev=p;
+  for(var i=0;i<600;i++){var curr=(i===0)?p:nextPrime(prev);primes.push({p:curr,gap:(i===0)?2:curr-prev});prev=curr;}
+  primeIdx=0;
+}
+function extendPrimes(){
+  if(!primes.length)return;
+  var prev=primes[primes.length-1].p;
+  for(var i=0;i<200;i++){var c=nextPrime(prev);primes.push({p:c,gap:c-prev});prev=c;}
+  if(primes.length>2400){var t=primes.length-1200;primes.splice(0,t);primeIdx=Math.max(0,primeIdx-t);}
+}
+function currentMaxGap(){var s=Math.max(0,primeIdx-4),e=Math.min(primes.length,primeIdx+12),mg=2;for(var i=s;i<e;i++)if(primes[i].gap>mg)mg=primes[i].gap;return mg;}
+
+// ── Math tracking ──
+var gapHist={},gapHistTotal=0,maxHistCount=1;
+var gapRecord=0; // largest gap seen this session
+var piHistory=[]; // [{p, count}] sampled
+var piCount=0;
+var goldbachCache={}; // even n -> [a,b] pair — cleared periodically
+
+function recordGap(gap,p){
+  if(!gapHist[gap])gapHist[gap]=0;
+  gapHist[gap]++;gapHistTotal++;
+  if(gapHist[gap]>maxHistCount)maxHistCount=gapHist[gap];
+  piCount++;
+  if(piCount%20===0)piHistory.push({p:p,count:piCount});
+  if(piHistory.length>80)piHistory.shift();
+}
+
+function goldbachPair(n){
+  if(n%2!==0||n<4)return null;
+  if(goldbachCache[n])return goldbachCache[n];
+  for(var a=2;a<=n/2;a++){if(isPrime(a)&&isPrime(n-a)){goldbachCache[n]=[a,n-a];return goldbachCache[n];}}
+  return null;
+}
+
+// ── Color ──
+function gapColor(gap,mg,alpha){
+  var t=(mg>0)?Math.min(gap/mg,1):0;
+  if(alpha===undefined)alpha=1;
+  var h,s,l,pal=state.palette||'dream';
+  if(pal==='dream'){h=260+t*140;s=45+t*18;l=74+t*12;}
+  else if(pal==='aurora'){h=150+t*120;s=42+t*22;l=70+t*16;}
+  else if(pal==='candy'){h=300+t*180;s=55+t*18;l=72+t*10;}
+  else if(pal==='sunrise'){h=10+t*50;s=65+t*15;l=74+t*12;}
+  else if(pal==='ocean'){h=180+t*80;s=45+t*22;l=70+t*16;}
+  else{h=260+t*140;s=45+t*18;l=74+t*12;}
+  return alpha<1?'hsla('+h+','+s+'%,'+l+'%,'+alpha+')':'hsl('+h+','+s+'%,'+l+'%)';
+}
+
+// ── Named prime pair colors ──
+var TWIN_COL   = 'hsl(340,60%,80%)';  // soft rose
+var COUSIN_COL = 'hsl(210,55%,78%)';  // soft blue
+var SEXY_COL   = 'hsl(150,50%,75%)';  // soft mint
+var DESERT_COL = 'hsl(45,65%,75%)';   // soft gold
+
+// ── Particles ──
+var FAR=1.0,FOV=0.55;
+var particles=[];
+var gapLabels=[];
+var eventRings=[]; // special named-pair rings
+
+function proj(wx,wy,z){var sc=FOV/Math.max(z,0.001);return{sx:CX+wx*W*sc,sy:CY+wy*H*sc,scale:sc};}
+
+function spawnParticlesForPrime(d,mg){
+  var t=(mg>0)?Math.min(d.gap/mg,1):0;
+  var col=gapColor(d.gap,mg);
+  var count=1;
+  for(var i=0;i<count;i++){
+    var wx=(Math.random()-0.5)*0.85,wy=(Math.random()-0.5)*0.85;
+    var r=Math.random();
+    if(r<0.3)spawnWisp(wx,wy,t,col);
+    else if(r<0.55)spawnBloom(wx,wy,t,col);
+    else if(r<0.78)spawnTendril(wx,wy,t,col);
+    else spawnSmoke(wx,wy,t,col);
+  }
+  // single particle only, no center bonus spawn
+
+  // Named pair events
+  // named pair rings disabled — info shown in stats card only
+
+  // Gap record tracker — stats card only
+  if(d.gap>gapRecord) gapRecord=d.gap;
+
+  // gap labels removed from flight — math shown in panels only
+}
+
+// ── Named event rings ──
+function spawnNamedEvent(type,p){
+  var col,label;
+  if(type==='twin'){col=TWIN_COL;label='twin  p,p+2';}
+  else if(type==='cousin'){col=COUSIN_COL;label='cousin  p,p+4';}
+  else if(type==='sexy'){col=SEXY_COL;label='sexy  p,p+6';}
+  else{col=DESERT_COL;label='record gap! '+gapRecord;}
+  eventRings.push({col:col,label:label,type:type,p:p,life:1,r:0,maxR:0.42,dz:0.00025,z:FAR*0.65});
+}
+
+// ── Gap label ──
+function spawnGapLabel(gap,mg,t,col,p){
+  var wx=(Math.random()-0.5)*0.5,wy=(Math.random()-0.5)*0.5;
+  gapLabels.push({gap:gap,col:col,t:t,worldX:wx,worldY:wy,z:FAR*0.88,dz:0.0007+t*0.0003,life:1,p:p,
+    isSpecial:(gap===2||gap===4||gap===6)});
+}
+
+function spawnWisp(wx,wy,t,col){
+  particles.push({type:'wisp',worldX:wx,worldY:wy,z:FAR,dz:0.0003+t*0.0002,col:col,t:t,life:1,
+    baseR:0.05+t*0.13,pulse:Math.random()*Math.PI*2,pulseS:0.0015+Math.random()*0.002,
+    rot:Math.random()*Math.PI*2,ry:0.45+Math.random()*0.55});
+}
+function spawnBloom(wx,wy,t,col){
+  particles.push({type:'bloom',worldX:wx,worldY:wy,z:FAR,dz:0.0003+t*0.0002,col:col,t:t,life:1,
+    rays:5+Math.floor(t*12)+Math.floor(Math.random()*4),maxR:0.07+t*0.2,
+    rotation:Math.random()*Math.PI*2,petals:Math.random()<0.5});
+}
+function spawnTendril(wx,wy,t,col){
+  var pts=[],ox=0,oy=0,angle=Math.random()*Math.PI*2,curl=(Math.random()-0.5)*0.35;
+  var segs=7+Math.floor(t*14)+Math.floor(Math.random()*5),step=0.011+t*0.016;
+  for(var i=0;i<segs;i++){angle+=curl+(Math.random()-0.5)*0.18;ox+=Math.cos(angle)*step;oy+=Math.sin(angle)*step;pts.push({ox:ox,oy:oy});}
+  particles.push({type:'tendril',worldX:wx,worldY:wy,z:FAR,dz:0.0003+t*0.0002,col:col,t:t,life:1,pts:pts,width:0.002+t*0.007});
+}
+function spawnSmoke(wx,wy,t,col){
+  particles.push({type:'smoke',worldX:wx,worldY:wy,z:FAR,dz:0.0002+t*0.0001,col:col,t:t,life:1,baseR:0.04+t*0.12,growR:0.00008+t*0.00015});
+}
+
+// ── Draw particle ──
+function drawParticle(p,ts){
+  if(p.z<=0.001||p.life<=0)return;
+  var nf=(p.z<0.07)?p.z/0.07:1,ff=(p.z>0.88)?(1-(p.z-0.88)/0.12):1;
+  var alpha=p.life*nf*ff; if(alpha<=0.01)return;
+  var pr=proj(p.worldX,p.worldY,p.z);
+
+  if(p.type==='wisp'){
+    p.pulse+=p.pulseS; var ps=1+Math.sin(p.pulse)*0.1,sr=p.baseR*pr.scale*W*ps; if(sr<1)return;
+    ctx.save();ctx.globalAlpha=alpha*0.13;ctx.translate(pr.sx,pr.sy);ctx.rotate(p.rot);
+    var g=ctx.createRadialGradient(0,0,0,0,0,sr);
+    g.addColorStop(0,p.col);g.addColorStop(0.55,p.col);g.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=g;ctx.scale(1,p.ry);ctx.beginPath();ctx.arc(0,0,sr,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  else if(p.type==='bloom'){
+    var appr=1-p.z,sr2=p.maxR*appr*pr.scale*W; if(sr2<1)return;
+    ctx.save();ctx.globalAlpha=alpha*0.11;ctx.translate(pr.sx,pr.sy);ctx.rotate(p.rotation+ts*0.00003);
+    if(p.petals){
+      for(var i=0;i<p.rays;i++){
+        var a=(i/p.rays)*Math.PI*2,px2=Math.cos(a)*sr2*0.5,py2=Math.sin(a)*sr2*0.5;
+        var pg=ctx.createRadialGradient(px2,py2,0,px2,py2,Math.max(1,sr2*0.52));
+        pg.addColorStop(0,p.col);pg.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=pg;
+        ctx.beginPath();ctx.ellipse(px2,py2,Math.max(1,sr2*0.4),Math.max(1,sr2*0.24),a,0,Math.PI*2);ctx.fill();
+      }
+    } else {
+      for(var i=0;i<p.rays;i++){
+        var a=(i/p.rays)*Math.PI*2;
+        ctx.beginPath();ctx.moveTo(0,0);
+        ctx.quadraticCurveTo(Math.cos(a+0.3)*sr2*0.5,Math.sin(a+0.3)*sr2*0.5,Math.cos(a)*sr2,Math.sin(a)*sr2);
+        ctx.strokeStyle=p.col;ctx.lineWidth=Math.max(0.4,(1-appr)*2.5);ctx.stroke();
+      }
+    }
+    var cg=ctx.createRadialGradient(0,0,0,0,0,Math.max(1,sr2*0.38));
+    cg.addColorStop(0,p.col);cg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=cg;ctx.beginPath();ctx.arc(0,0,Math.max(1,sr2*0.38),0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  else if(p.type==='tendril'){
+    if(!p.pts||p.pts.length<2)return;
+    ctx.save();ctx.globalAlpha=alpha*0.32;ctx.translate(pr.sx,pr.sy);
+    var lw=Math.max(0.4,p.width*pr.scale*W*p.life);
+    ctx.lineWidth=lw;ctx.strokeStyle=p.col;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.shadowColor=p.col;ctx.shadowBlur=lw*1.5;
+    var sc=pr.scale*W;ctx.beginPath();ctx.moveTo(0,0);
+    for(var i=0;i<p.pts.length;i++){
+      var qx=p.pts[i].ox*sc,qy=p.pts[i].oy*sc;
+      if(i===0){ctx.lineTo(qx,qy);}
+      else{var mx=(p.pts[i-1].ox*sc+qx)/2,my=(p.pts[i-1].oy*sc+qy)/2;ctx.quadraticCurveTo(p.pts[i-1].ox*sc,p.pts[i-1].oy*sc,mx,my);}
+    }
+    ctx.stroke();ctx.restore();
+  }
+  else if(p.type==='smoke'){
+    var sr3=(p.baseR+p.growR*(1-p.z)*300)*pr.scale*W; if(sr3<1)return;
+    ctx.save();ctx.globalAlpha=alpha*0.05;
+    var sg=ctx.createRadialGradient(pr.sx,pr.sy,0,pr.sx,pr.sy,sr3);
+    sg.addColorStop(0,p.col);sg.addColorStop(0.6,p.col);sg.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=sg;ctx.beginPath();ctx.arc(pr.sx,pr.sy,sr3,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+}
+
+// ── Draw named event rings ──
+function drawEventRings(speed){
+  for(var i=eventRings.length-1;i>=0;i--){
+    var ev=eventRings[i];
+    ev.z-=ev.dz*speed*16;
+    var appr=1-ev.z;
+    var sr=ev.maxR*appr*(FOV/Math.max(ev.z,0.001))*W;
+    var nf=(ev.z<0.07)?ev.z/0.07:1,ff=(ev.z>0.85)?(1-(ev.z-0.85)/0.15):1;
+    var alpha=ev.life*nf*ff;
+
+    if(alpha>0.01&&sr>2){
+      ctx.save();
+      // Outer ring
+      ctx.globalAlpha=alpha*0.28;
+      ctx.strokeStyle=ev.col;ctx.lineWidth=Math.max(1,2.5*(1-appr));
+      ctx.shadowColor=ev.col;ctx.shadowBlur=10;
+      ctx.beginPath();ctx.arc(CX,CY,sr,0,Math.PI*2);ctx.stroke();
+      // Inner ring
+      ctx.globalAlpha=alpha*0.14;
+      ctx.beginPath();ctx.arc(CX,CY,sr*0.55,0,Math.PI*2);ctx.stroke();
+      // Label when mid-range
+      // labels shown only in stats card, not center screen
+      ctx.restore();
+    }
+
+    if(ev.z<=0||alpha<=0.01)eventRings.splice(i,1);
+  }
+}
+
+// ── Draw gap labels ──
+function drawGapLabels(){
+  for(var i=gapLabels.length-1;i>=0;i--){
+    var lb=gapLabels[i];
+    if(lb.z<=0.04||lb.life<=0){gapLabels.splice(i,1);continue;}
+    var nf=(lb.z<0.07)?lb.z/0.07:1,ff=(lb.z>0.85)?(1-(lb.z-0.85)/0.15):1;
+    var a=lb.life*nf*ff; if(a<=0.02){gapLabels.splice(i,1);continue;}
+    var pr=proj(lb.worldX,lb.worldY,lb.z);
+    var fs=Math.max(9,Math.min(22,pr.scale*W*0.05));
+    ctx.save();
+    ctx.globalAlpha=a*(lb.isSpecial?0.88:0.6);
+    ctx.font=(lb.isSpecial?'400 ':'300 ')+fs+'px \'DM Mono\'';
+    var col=lb.gap===2?TWIN_COL:lb.gap===4?COUSIN_COL:lb.gap===6?SEXY_COL:lb.col;
+    ctx.fillStyle=col;ctx.textAlign='center';ctx.textBaseline='middle';
+    // Always show gap number only — named pair labels stay in stats card only
+    ctx.fillText('gap='+lb.gap,pr.sx,pr.sy);
+    ctx.restore();
+  }
+}
+
+// ── Math overlay panels ──
+function roundRect(c,x,y,w,h,r){
+  c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.arcTo(x+w,y,x+w,y+r,r);
+  c.lineTo(x+w,y+h-r);c.arcTo(x+w,y+h,x+w-r,y+h,r);
+  c.lineTo(x+r,y+h);c.arcTo(x,y+h,x,y+h-r,r);
+  c.lineTo(x,y+r);c.arcTo(x,y,x+r,y,r);c.closePath();
+}
+
+// 1. Stats card (top-left)
+function drawStatsCard(){
+  if(!primes[primeIdx])return;
+  var d=primes[primeIdx],mg=currentMaxGap();
+  var logP=Math.log(d.p).toFixed(2);
+  var lines=['p  = '+d.p.toLocaleString(),'gap = '+d.gap,'ln(p) = '+logP,'π(x) ≈ '+piCount.toLocaleString(),'record = '+gapRecord];
+  var cx=16,cy=44,cw=168,ch=lines.length*17+14;
+  ctx.save();ctx.globalAlpha=0.82;
+  ctx.fillStyle='rgba(255,252,255,0.88)';roundRect(ctx,cx,cy,cw,ch,10);ctx.fill();
+  ctx.restore();
+  for(var i=0;i<lines.length;i++){
+    ctx.save();ctx.globalAlpha=0.78;
+    ctx.font=(i===0||i===4?'400 ':'300 ')+'10.5px \'DM Mono\'';
+    var lineCol='#8060a8';
+    if(i===1){lineCol=gapColor(d.gap,mg);}
+    if(i===4&&d.gap===gapRecord&&gapRecord>2){lineCol=DESERT_COL;}
+    ctx.fillStyle=lineCol;ctx.textAlign='left';
+    ctx.fillText(lines[i],cx+10,cy+14+i*17);ctx.restore();
+  }
+  // Named pair badge
+  var badge=null;
+  if(d.gap===2)badge={txt:'✦ twin prime',col:'rgba(255,240,245,0.95)',tcol:'#c06080'};
+  else if(d.gap===4)badge={txt:'✦ cousin prime',col:'rgba(235,242,255,0.95)',tcol:'#6080c0'};
+  else if(d.gap===6)badge={txt:'✦ sexy prime',col:'rgba(235,252,242,0.95)',tcol:'#408060'};
+  else if(d.gap===gapRecord&&gapRecord>2)badge={txt:'✦ new record!',col:'rgba(255,250,225,0.95)',tcol:'#a07010'};
+  if(badge){
+    ctx.save();ctx.globalAlpha=0.88;
+    ctx.fillStyle=badge.col;roundRect(ctx,cx,cy+ch+5,cw,22,8);ctx.fill();
+    ctx.globalAlpha=0.92;ctx.font='400 10px \'DM Mono\'';ctx.fillStyle=badge.tcol;
+    ctx.textAlign='center';ctx.fillText(badge.txt,cx+cw/2,cy+ch+5+14);ctx.restore();
+  }
+}
+
+// 2. Histogram (bottom-right)
+function drawHistogram(){
+  var gapKeys=Object.keys(gapHist).map(Number).sort(function(a,b){return a-b;});
+  if(gapKeys.length<2)return;
+  var HW=Math.min(160,W*0.38),HH=60,HX=W-HW-14,HY=H-HH-82;
+  ctx.save();ctx.globalAlpha=0.78;
+  ctx.fillStyle='rgba(255,252,255,0.86)';roundRect(ctx,HX-8,HY-20,HW+16,HH+32,10);ctx.fill();
+  ctx.globalAlpha=0.5;ctx.font='300 8px \'DM Mono\'';ctx.fillStyle='#b090c8';ctx.textAlign='left';
+  ctx.fillText('GAP DISTRIBUTION',HX-4,HY-8);ctx.restore();
+  var maxGV=gapKeys[gapKeys.length-1],mg2=currentMaxGap();
+  var bw=HW/gapKeys.length;
+  for(var i=0;i<gapKeys.length;i++){
+    var g=gapKeys[i],cnt=gapHist[g],bh=(cnt/maxHistCount)*HH;
+    var bx=HX+i*bw,by=HY+HH-bh;
+    var col=g===2?TWIN_COL:g===4?COUSIN_COL:g===6?SEXY_COL:gapColor(g,Math.max(maxGV,mg2));
+    ctx.save();ctx.globalAlpha=0.72;ctx.fillStyle=col;
+    ctx.beginPath();
+    if(ctx.roundRect)ctx.roundRect(bx+0.5,by,Math.max(1,bw-1),bh,[2,2,0,0]);
+    else ctx.rect(bx+0.5,by,Math.max(1,bw-1),bh);
+    ctx.fill();ctx.restore();
+    if(bw>12||(i%Math.ceil(gapKeys.length/8)===0)){
+      ctx.save();ctx.globalAlpha=0.38;ctx.font='300 7px \'DM Mono\'';ctx.fillStyle='#9070b0';ctx.textAlign='center';
+      ctx.fillText(String(g),bx+bw/2,HY+HH+10);ctx.restore();
+    }
+  }
+  ctx.save();ctx.globalAlpha=0.15;ctx.strokeStyle='#9070b0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(HX-2,HY);ctx.lineTo(HX-2,HY+HH);ctx.lineTo(HX+HW,HY+HH);ctx.stroke();ctx.restore();
+}
+
+// 3. π(x) curve (bottom-left, only if enough data)
+function drawPiCurve(){
+  if(piHistory.length<4)return;
+  var CW=Math.min(150,W*0.35),CH=55,CX2=14,CY2=H-CH-82;
+  ctx.save();ctx.globalAlpha=0.78;
+  ctx.fillStyle='rgba(255,252,255,0.86)';roundRect(ctx,CX2-4,CY2-20,CW+12,CH+32,10);ctx.fill();
+  ctx.globalAlpha=0.5;ctx.font='300 8px \'DM Mono\'';ctx.fillStyle='#b090c8';ctx.textAlign='left';
+  ctx.fillText('π(x)  prime count',CX2,CY2-8);ctx.restore();
+  var minP=piHistory[0].p,maxP=piHistory[piHistory.length-1].p;
+  var maxC=piHistory[piHistory.length-1].count;
+  var pRange=Math.max(1,maxP-minP);
+  ctx.save();ctx.globalAlpha=0.7;
+  ctx.strokeStyle='hsl(270,45%,72%)';ctx.lineWidth=1.5;ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.beginPath();
+  for(var i=0;i<piHistory.length;i++){
+    var px2=CX2+(piHistory[i].p-minP)/pRange*CW;
+    var py2=CY2+CH-(piHistory[i].count/maxC)*CH;
+    if(i===0)ctx.moveTo(px2,py2);else ctx.lineTo(px2,py2);
+  }
+  ctx.stroke();
+  // Li(x) approximation overlay
+  ctx.strokeStyle='hsl(45,55%,70%)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();
+  for(var i=0;i<piHistory.length;i++){
+    var px2=CX2+(piHistory[i].p-minP)/pRange*CW;
+    var liApprox=piHistory[i].p/Math.max(1,Math.log(piHistory[i].p));
+    var py2=CY2+CH-(liApprox/Math.max(1,maxP/Math.log(Math.max(2,maxP))))*CH*0.85;
+    py2=Math.max(CY2,Math.min(CY2+CH,py2));
+    if(i===0)ctx.moveTo(px2,py2);else ctx.lineTo(px2,py2);
+  }
+  ctx.stroke();ctx.setLineDash([]);ctx.restore();
+  // Legend
+  ctx.save();ctx.globalAlpha=0.5;ctx.font='300 7px \'DM Mono\'';
+  ctx.fillStyle='hsl(270,45%,60%)';ctx.textAlign='left';ctx.fillText('actual',CX2,CY2+CH+11);
+  ctx.fillStyle='hsl(45,55%,55%)';ctx.fillText('x/ln(x)',CX2+38,CY2+CH+11);ctx.restore();
+}
+
+// 4. Ulam spiral (top-right, compact)
+// Larger grid for better diagonal visibility
+var ULAM_SIZE=19;
+var ulamCache=null,ulamCacheP=-1;
+
+function buildUlamCache(startN,total){
+  // Walk the Ulam spiral and record which grid positions are prime
+  // Grid coords: 0,0 = center
+  ulamCache={};
+  var x=0,y=0,dx=0,dy=-1,steps=1,stepCount=0,turns=0;
+  for(var i=0;i<total;i++){
+    var val=startN+i;
+    if(isPrime(val)) ulamCache[x+','+y]=val;
+    // advance walker
+    x+=dx; y+=dy; stepCount++;
+    if(stepCount===steps){
+      stepCount=0; turns++;
+      var tmp=dx; dx=-dy; dy=tmp;
+      if(turns%2===0) steps++;
+    }
+  }
+}
+
+function drawUlamSpiral(){
+  var US=Math.min(140,W*0.32);
+  // Push box down so it clears the prime display text (which sits at top:18px)
+  var UX=W-US-14, UY=46;
+  var cellSize=US/ULAM_SIZE;
+  var center=Math.floor(ULAM_SIZE/2);
+  var total=ULAM_SIZE*ULAM_SIZE;
+  var startP=primes[primeIdx]?primes[primeIdx].p:2;
+  var startN=Math.max(1,startP-Math.floor(total/2));
+
+  // Recompute only when region shifts by more than half the grid
+  if(ulamCache===null||Math.abs(startP-ulamCacheP)>Math.floor(total/2)){
+    ulamCacheP=startP;
+    buildUlamCache(startN,total);
+  }
+
+  // Background card — positioned below prime display
+  ctx.save();
+  ctx.globalAlpha=0.82;
+  ctx.fillStyle='rgba(255,252,255,0.90)';
+  roundRect(ctx,UX-6,UY-4,US+12,US+22,10);
+  ctx.fill();
+  // Title inside card at top
+  ctx.globalAlpha=0.55;
+  ctx.font='300 8px \'DM Mono\'';
+  ctx.fillStyle='#b090c8';
+  ctx.textAlign='center';
+  ctx.fillText('ULAM SPIRAL',UX+US/2,UY+10);
+  ctx.restore();
+
+  // Draw prime dots
+  var mg=currentMaxGap();
+  for(var gy=-center;gy<=center;gy++){
+    for(var gx=-center;gx<=center;gx++){
+      var key=gx+','+gy;
+      if(!ulamCache[key]) continue;
+      var px3=UX+(gx+center)*cellSize;
+      var py3=UY+16+(gy+center)*cellSize; // +16 for title clearance
+      var r2=Math.max(1,cellSize*0.36);
+      ctx.save();
+      ctx.globalAlpha=0.85;
+      ctx.fillStyle=gapColor(4,10);
+      ctx.beginPath();
+      ctx.arc(px3+cellSize/2,py3+cellSize/2,r2,0,Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+// 5. Goldbach arcs (center, subtle, math mode only)
+var goldbachArcs=[];
+var goldbachTimer=0;
+function updateGoldbach(dt,speed){
+  goldbachTimer+=dt;
+  if(goldbachTimer<1800/speed)return;
+  goldbachTimer=0;
+  if(!primes[primeIdx])return;
+  var evenN=Math.floor(primes[primeIdx].p/2)*2;
+  if(evenN<4)return;
+  var pair=goldbachPair(Math.min(evenN,200)); // keep small for perf
+  if(!pair)return;
+  goldbachArcs.push({a:pair[0],b:pair[1],n:evenN,life:1,decay:0.004});
+}
+function drawGoldbachArcs(){
+  if(!goldbachArcs.length)return;
+  var GW=Math.min(160,W*0.4),GX=CX-GW/2,GY=CY-30;
+  for(var i=goldbachArcs.length-1;i>=0;i--){
+    var arc=goldbachArcs[i];
+    arc.life-=arc.decay;
+    if(arc.life<=0){goldbachArcs.splice(i,1);continue;}
+    ctx.save();
+    ctx.globalAlpha=arc.life*0.35;
+    // Draw number line segment
+    var scaleX=GW/Math.max(arc.n,1);
+    var ax=GX+arc.a*scaleX,bx=GX+arc.b*scaleX,nx=GX+arc.n*scaleX;
+    // Arc from a to b
+    var midX=(ax+bx)/2,arcH=Math.min(40,(bx-ax)*0.5);
+    ctx.strokeStyle='hsl(270,45%,72%)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(ax,GY+20);ctx.quadraticCurveTo(midX,GY+20-arcH,bx,GY+20);ctx.stroke();
+    // Dots
+    ctx.fillStyle=TWIN_COL;ctx.beginPath();ctx.arc(ax,GY+20,3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=COUSIN_COL;ctx.beginPath();ctx.arc(bx,GY+20,3,0,Math.PI*2);ctx.fill();
+    // Labels
+    if(showMath){
+      ctx.font='300 9px \'DM Mono\'';ctx.fillStyle='#9060b0';ctx.textAlign='center';
+      ctx.fillText(arc.a,ax,GY+14);ctx.fillText(arc.b,bx,GY+14);
+      ctx.fillText(arc.a+'+'+arc.b+'='+arc.n,midX,GY+5);
+    }
+    ctx.restore();
+  }
+}
+
+// ── Background ──
+var bgH=290,bgHTarget=290,bgHTimer=0;
+
+// ── Main loop ──
+var lastTime=0,spawnTimer=0,travelZ=0;
+
+function loop(ts){
+  try{
+    var dt=Math.min(ts-lastTime,50);lastTime=ts;
+    var rawSpeed=(state.speed||5)/10; // 0.1..1.0
+    // Remap: min speed 0.15, max speed 0.8 — all slower, highest is still moderate
+    var speed=0.15+rawSpeed*0.65;
+    var dreamy=(state.dreamy||7)/10;
+    travelZ+=dt*speed*0.10;primeIdx=Math.floor(travelZ/55);
+    if(primeIdx>=primes.length-60)extendPrimes();
+    if(primeIdx>=primes.length)primeIdx=primes.length-1;
+    bgHTimer+=dt;if(bgHTimer>7000){bgHTimer=0;bgHTarget=(bgHTarget+60+Math.random()*120)%360;}
+    bgH+=(bgHTarget-bgH)*0.0009*dt;
+    spawnTimer+=dt;
+    var interval=Math.max(220,500-speed*40);
+    if(spawnTimer>interval&&primes.length>0){
+      spawnTimer=0;
+      var d=primes[Math.min(primeIdx,primes.length-1)],mg=currentMaxGap();
+      spawnParticlesForPrime(d,mg);recordGap(d.gap,d.p);
+    }
+    // Goldbach arcs removed — too cluttered in center
+    var decay=0.65+speed*0.25;
+    for(var i=particles.length-1;i>=0;i--){var p=particles[i];p.z-=p.dz*dt*speed;if(p.z<0.08)p.life-=0.010*dt;if(p.z<=0||p.life<=0)particles.splice(i,1);}
+    for(var i=gapLabels.length-1;i>=0;i--){var lb=gapLabels[i];lb.z-=lb.dz*dt*speed;if(lb.z<0.05)lb.life-=0.025*dt;}
+    if(particles.length>160)particles.splice(0,particles.length-160);
+    render(ts,dreamy,speed);
+  }catch(e){}
+  requestAnimationFrame(loop);
+}
+
+function render(ts,dreamy,speed){
+  var fa=0.055+(1-dreamy)*0.06;
+  ctx.fillStyle='hsla('+bgH+',55%,91%,'+fa+')';ctx.fillRect(0,0,W,H);
+  var vig=ctx.createRadialGradient(CX,CY,0,CX,CY,Math.max(W,H)*0.6);
+  vig.addColorStop(0,'rgba(255,255,255,0.04)');vig.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+  var sorted=particles.slice().sort(function(a,b){return b.z-a.z;});
+  for(var i=0;i<sorted.length;i++)drawParticle(sorted[i],ts);
+  // event rings and drawEventRings removed
+  if(showMath){
+    // drawGoldbachArcs and drawGapLabels removed
+    drawStatsCard();
+    drawHistogram();
+    drawPiCurve();
+    drawUlamSpiral();
+  }
+  if(primes[primeIdx]){
+    var d=primes[primeIdx];
+    document.getElementById('prime-display').textContent='p = '+d.p.toLocaleString()+'  ·  gap = '+d.gap;
+  }
+}
+
+// ── Ripple ──
+function spawnRipple(x,y){
+  if(!primes[primeIdx])return;
+  var mg=currentMaxGap(),col=gapColor(primes[primeIdx].gap,mg);
+  var sz=Math.max(W,H)*(0.38+Math.random()*0.4);
+  for(var i=0;i<3;i++){(function(ii){setTimeout(function(){
+    var el=document.createElement('div');el.className='ripple';
+    var s=sz*(0.22+ii*0.25);
+    el.style.cssText='left:'+x+'px;top:'+y+'px;width:'+s+'px;height:'+s+'px;border:1.5px solid '+col+';animation-duration:'+(1.2+ii*0.22)+'s;';
+    document.body.appendChild(el);setTimeout(function(){el.remove();},1700);
+  },ii*70);})(i);}
+  var d=primes[primeIdx],mg2=currentMaxGap();
+  var t=(mg2>0)?Math.min(d.gap/mg2,1):0,c=gapColor(d.gap,mg2);
+  var z=0.3,sc=FOV/z;
+  var wx=Math.max(-0.5,Math.min(0.5,(x-CX)/(W*sc)));
+  var wy=Math.max(-0.5,Math.min(0.5,(y-CY)/(H*sc)));
+  for(var k=0;k<4;k++){
+    var jx=wx+(Math.random()-0.5)*0.12,jy=wy+(Math.random()-0.5)*0.12,kk=k%3;
+    if(kk===0)spawnBloom(jx,jy,t,c);else if(kk===1)spawnTendril(jx,jy,t,c);else spawnWisp(jx,jy,t,c);
+    particles[particles.length-1].z=z+Math.random()*0.08;
+  }
+  // gap label on tap removed
+}
+
+// ── Sound ──
+function initAudio(){if(audioCtx)return;try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+function playGapTone(){
+  if(!audioCtx||!soundOn||!primes[primeIdx])return;
+  var now=audioCtx.currentTime;if(now-lastSoundT<2.8)return;lastSoundT=now;
+  var mg=currentMaxGap(),t=(mg>0)?Math.min(primes[primeIdx].gap/mg,1):0;
+  var tones=[[1,0.038,'sine'],[2.01,0.02,'triangle'],[0.501,0.014,'sine']];
+  for(var i=0;i<tones.length;i++){try{
+    var o=audioCtx.createOscillator(),g=audioCtx.createGain(),f=audioCtx.createBiquadFilter();
+    o.type=tones[i][2];o.frequency.value=(90+t*380)*tones[i][0];f.type='lowpass';f.frequency.value=400+t*800;
+    g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(tones[i][1],now+0.8);g.gain.linearRampToValueAtTime(0,now+4.0);
+    o.connect(f);f.connect(g);g.connect(audioCtx.destination);o.start(now);o.stop(now+4.5);
+  }catch(e){}}
+}
+setInterval(function(){if(soundOn)playGapTone();},2600);
+
+// ── Logarithmic slider ──
+var MAX_PRIME=10000000;
+var LOG_STOPS=[
+  {val:2,      step:0,   fact:'The only even prime. Every journey begins here.'},
+  {val:10,     step:80,  fact:'Primes thin out but twin pairs are still everywhere.'},
+  {val:100,    step:200, fact:'Gaps of up to 8 appear. Primes slow to ~25% density.'},
+  {val:1000,   step:330, fact:'Average gap ≈ 7. The gap of 34 first appears here.'},
+  {val:10000,  step:460, fact:'Average gap ≈ 9. Gaps of 36 start appearing.'},
+  {val:100000, step:590, fact:'Average gap ≈ 11. Rare gaps of 72 emerge.'},
+  {val:1000000,step:750, fact:'Average gap ≈ 14. Beautiful long prime deserts.'},
+  {val:10000000,step:1000,fact:'Average gap ≈ 16. Max gap here is 154 — exotic territory.'}
+];
+
+function sliderToValue(s){
+  s=Math.min(Math.max(s,0),1000);
+  for(var i=0;i<LOG_STOPS.length-1;i++){
+    var a=LOG_STOPS[i],b=LOG_STOPS[i+1];
+    if(s>=a.step&&s<=b.step){
+      var frac=(s-a.step)/(b.step-a.step);
+      var logA=Math.log10(Math.max(a.val,1)),logB=Math.log10(b.val);
+      return Math.round(Math.pow(10,logA+(logB-logA)*frac));
+    }
+  }
+  return MAX_PRIME;
+}
+function valueToSlider(v){
+  v=Math.min(Math.max(v,2),MAX_PRIME);
+  for(var i=0;i<LOG_STOPS.length-1;i++){
+    var a=LOG_STOPS[i],b=LOG_STOPS[i+1];
+    if(v>=a.val&&v<=b.val){
+      var logA=Math.log10(Math.max(a.val,1)),logB=Math.log10(b.val),logV=Math.log10(v);
+      var frac=(logV-logA)/(logB-logA);
+      return Math.round(a.step+(b.step-a.step)*frac);
+    }
+  }
+  return 1000;
+}
+function formatNum(v){
+  if(v>=1000000)return(v/1000000).toFixed(v%100000===0?0:2).replace(/\.?0+$/,'')+'M';
+  if(v>=1000)return(v/1000).toFixed(v%100===0?0:1).replace(/\.?0+$/,'')+'K';
+  return String(v);
+}
+function getFactForVal(v){
+  for(var i=LOG_STOPS.length-1;i>=0;i--)if(v>=LOG_STOPS[i].val)return LOG_STOPS[i].fact;
+  return LOG_STOPS[0].fact;
+}
+function updatePickDisplay(v){
+  document.getElementById('pick-num').textContent=formatNum(v);
+  document.getElementById('pick-fact').textContent=getFactForVal(v);
+}
+
+var logSlider=document.getElementById('log-slider');
+logSlider.value=valueToSlider(state.startNum||2);
+updatePickDisplay(state.startNum||2);
+logSlider.addEventListener('input',function(){
+  var v=sliderToValue(parseInt(logSlider.value));
+  updatePickDisplay(v);
+});
+
+// ── UI wiring ──
+var menuEl=document.getElementById('menu');
+var soundToggle=document.getElementById('sound-toggle');
+var speedSlider=document.getElementById('speed-slider');
+var dreamSlider=document.getElementById('dream-slider');
+var goBtn=document.getElementById('go-btn');
+var mathBtn=document.getElementById('math-btn');
+
+function openMenu(){menuOpen=true;menuEl.classList.add('open');}
+function closeMenu(){menuOpen=false;menuEl.classList.remove('open');}
+document.getElementById('menu-btn').addEventListener('click',function(){if(menuOpen)closeMenu();else openMenu();});
+document.getElementById('menu-backdrop').addEventListener('click',closeMenu);
+
+mathBtn.addEventListener('click',function(){
+  showMath=!showMath;mathBtn.classList.toggle('on',showMath);
+  mathBtn.querySelector('span').textContent=showMath?'hide math':'show math';
+  state.showMath=showMath;saveState();
+});
+
+document.querySelectorAll('#palette-chips .chip').forEach(function(b){
+  b.addEventListener('click',function(){
+    document.querySelectorAll('#palette-chips .chip').forEach(function(x){x.classList.remove('active');});
+    b.classList.add('active');state.palette=b.dataset.palette;saveState();
+  });
+});
+
+goBtn.addEventListener('click',function(){
+  var v=sliderToValue(parseInt(logSlider.value));
+  jumpTo(v);
+});
+
+function jumpTo(n){
+  n=Math.min(n,MAX_PRIME);
+  state.startNum=n;saveState();
+  buildPrimes(n);travelZ=0;primeIdx=0;
+  particles=[];gapLabels=[];eventRings=[];goldbachArcs=[];
+  gapHist={};gapHistTotal=0;maxHistCount=1;
+  gapRecord=0;piCount=0;piHistory=[];goldbachCache={};
+  ctx.fillStyle='hsl('+bgH+',55%,91%)';ctx.fillRect(0,0,W,H);
+  closeMenu();
+}
+
+speedSlider.value=state.speed;
+speedSlider.addEventListener('input',function(){state.speed=+speedSlider.value;saveState();});
+dreamSlider.value=state.dreamy||7;
+dreamSlider.addEventListener('input',function(){state.dreamy=+dreamSlider.value;saveState();});
+
+soundToggle.addEventListener('click',function(){
+  soundOn=!soundOn;soundToggle.classList.toggle('on',soundOn);state.sound=soundOn;saveState();
+  if(soundOn){initAudio();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume().catch(function(){});}
+});
+
+function applyUI(){
+  speedSlider.value=state.speed;dreamSlider.value=state.dreamy||7;
+  document.querySelectorAll('#palette-chips .chip').forEach(function(b){b.classList.toggle('active',b.dataset.palette===state.palette);});
+  if(state.sound){soundOn=true;soundToggle.classList.add('on');}
+  if(state.showMath){showMath=true;mathBtn.classList.add('on');mathBtn.querySelector('span').textContent='hide math';}
+}
+applyUI();
+
+canvas.addEventListener('pointerdown',function(e){if(!menuOpen)spawnRipple(e.clientX,e.clientY);});
+canvas.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
+
+var titleScreen=document.getElementById('title-screen');
+setTimeout(function(){
+  titleScreen.classList.add('hidden');
+  setTimeout(function(){titleScreen.style.display='none';},1700);
+  document.getElementById('prime-display').classList.add('visible');
+},3000);
+
+buildPrimes(state.startNum);
+ctx.fillStyle='hsl(290,55%,91%)';ctx.fillRect(0,0,W,H);
+requestAnimationFrame(function(ts){lastTime=ts;requestAnimationFrame(loop);});
+</script>
+</body>
+</html>
